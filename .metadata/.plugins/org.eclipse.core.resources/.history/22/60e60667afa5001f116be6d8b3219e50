@@ -1,0 +1,126 @@
+package main.java.controller;
+
+import java.awt.event.ActionEvent;
+import java.util.List;
+
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.Button;
+import javafx.scene.control.ListView;
+import javafx.scene.layout.AnchorPane;
+import javafx.stage.Stage;
+
+public class PagePrincipalController {
+//PANE
+	@FXML
+    private AnchorPane panePagePrincipal;
+	
+//BUTTON
+    @FXML
+    private Button abrirOrcamentoBTN;
+
+    @FXML
+    private Button baixarOrcamentoBTN;
+
+    @FXML
+    private Button criarOrcamentoBTN;
+
+    @FXML
+    private Button excluirOrcamentoBTN;
+
+//LISTVIEW
+    @FXML
+    private ListView<String> listaCurriculos;
+    
+    
+    @FXML
+    private void abrirPageOrcamento(){
+    	
+    	try {
+        	Stage stage = (Stage) abrirOrcamentoBTN.getScene().getWindow();
+        	Parent root = FXMLLoader.load(getClass().getResource("/main/java/view/curriculo.fxml"));
+        	stage.setScene(new Scene(root));
+        	stage.show();
+    	} catch(Exception e) {
+    		e.printStackTrace();
+    	}      
+    }
+    
+    private ObservableList<String> nomesOrcamentos = FXCollections.observableArrayList();
+    private OrcamentoDAO orcamentoDAO = new OrcamentoDAO();
+
+    @FXML
+    public void initialize() {
+        carregarNomesOrcamentos();
+    }
+
+    private void carregarNomesOrcamentos() {
+        nomesOrcamentos.clear();
+        List<Orcamento> orcamentos = orcamentoDAO.buscarTodos();
+        for (Orcamento orcamento : orcamentos) {
+            nomesOrcamentos.add(orcamento.getNomeOrcamento());
+        }
+        listaCurriculos.setItems(nomesOrcamentos);
+    }
+
+    @FXML
+    private void abrirOrcamento() {
+        String nomeSelecionado = listaCurriculos.getSelectionModel().getSelectedItem();
+        if (nomeSelecionado != null) {
+            Orcamento orcamento = orcamentoDAO.buscarPorNome(nomeSelecionado);
+            if (orcamento != null) {
+                // Lógica para abrir a tela de modificação do orçamento selecionado
+            	abrirPageOrcamento();
+                exibirAlerta(AlertType.INFORMATION, "Abrir Orçamento", "Abrindo orçamento: " + nomeSelecionado);
+            }
+        } else {
+            exibirAlerta(AlertType.WARNING, "Nenhum orçamento selecionado", "Por favor, selecione um orçamento para abrir.");
+        }
+    }
+
+    @FXML
+    private void excluirOrcamento() {
+        String nomeSelecionado = listaCurriculos.getSelectionModel().getSelectedItem();
+        if (nomeSelecionado != null) {
+            Orcamento orcamento = orcamentoDAO.buscarPorNome(nomeSelecionado);
+            if (orcamento != null) {
+                orcamentoDAO.excluir(orcamento.getIdOrcamento());
+                carregarNomesOrcamentos();
+                exibirAlerta(AlertType.INFORMATION, "Exclusão", "Orçamento excluído com sucesso.");
+            }
+        } else {
+            exibirAlerta(AlertType.WARNING, "Nenhum orçamento selecionado", "Por favor, selecione um orçamento para excluir.");
+        }
+    }
+
+    @FXML
+    private void baixarPDF() {
+        String nomeSelecionado = listaCurriculos.getSelectionModel().getSelectedItem();
+        if (nomeSelecionado != null) {
+            Orcamento orcamento = orcamentoDAO.buscarPorNome(nomeSelecionado);
+            if (orcamento != null) {
+                // Chamar a função para gerar o PDF do orçamento
+                exibirAlerta(AlertType.INFORMATION, "PDF", "PDF do orçamento baixado com sucesso!");
+            }
+        } else {
+            exibirAlerta(AlertType.WARNING, "Nenhum orçamento selecionado", "Por favor, selecione um orçamento para baixar o PDF.");
+        }
+    }
+
+    private void exibirAlerta(AlertType tipo, String titulo, String mensagem) {
+        Alert alerta = new Alert(tipo);
+        alerta.setTitle(titulo);
+        alerta.setContentText(mensagem);
+        alerta.showAndWait();
+    }
+}
+
+ 
+
+

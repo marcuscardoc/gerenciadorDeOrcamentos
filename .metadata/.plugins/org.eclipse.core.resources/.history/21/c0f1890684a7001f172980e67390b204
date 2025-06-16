@@ -1,0 +1,225 @@
+package main.java.controller;
+
+import java.util.List;
+
+import com.itextpdf.text.Document;
+import com.itextpdf.text.Paragraph;
+import com.itextpdf.text.pdf.PdfDocument;
+import com.itextpdf.text.pdf.PdfWriter;
+import com.itextpdf.text.DocumentException;
+import com.itextpdf.text.pdf.PdfPTable;
+import com.itextpdf.text.pdf.PdfPCell;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.Button;
+import javafx.scene.control.Cell;
+import javafx.scene.control.ListView;
+import javafx.scene.layout.AnchorPane;
+import javafx.scene.text.TextAlignment;
+import javafx.stage.FileChooser;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import main.java.DAO.OrcamentoDAO;
+import main.java.model.Orcamento;
+import main.java.model.Produto;
+
+public class PagePrincipalController {
+//PANE
+	@FXML
+	private AnchorPane panePagePrincipal;
+
+//BUTTON
+	@FXML
+	private Button abrirOrcamentoBTN;
+
+	@FXML
+	private Button baixarOrcamentoBTN;
+
+	@FXML
+	private Button criarOrcamentoBTN;
+
+	@FXML
+	private Button excluirOrcamentoBTN;
+
+//LISTVIEW
+	@FXML
+	private ListView<String> listaCurriculos;
+
+	private ObservableList<String> nomesOrcamentos = FXCollections.observableArrayList();
+	private OrcamentoDAO orcamentoDAO = new OrcamentoDAO();
+	
+	@FXML
+	public void initialize() {
+		carregarNomesOrcamentos();
+	}
+	
+	@FXML
+	private void abrirPageOrcamento(Orcamento orcamento) {
+		try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/main/java/view/curriculo.fxml"));
+            Parent root = loader.load();
+
+            // Obtendo o controller da página de orçamento
+            PageOrcamentoController controller = loader.getController();
+            // controller.setOrcamento(orcamento); // Passar o orçamento para edição
+            //  controller.setParentController(this); // Configurar referência ao controller principal
+
+            // Abrindo a página
+            Stage stage = new Stage();
+            stage.setTitle(orcamento == null ? "Criar Orçamento" : "Editar Orçamento");
+            stage.setScene(new Scene(root));
+            stage.initModality(Modality.APPLICATION_MODAL);
+            stage.showAndWait();
+
+            // Atualizar a lista de orçamentos após o fechamento
+            carregarNomesOrcamentos();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+		
+	}
+
+	private void carregarNomesOrcamentos() {
+		nomesOrcamentos.clear();
+		List<Orcamento> orcamentos = orcamentoDAO.buscarTodos();
+		for (Orcamento orcamento : orcamentos) {
+			nomesOrcamentos.add(orcamento.getNomeOrcamento());
+		}
+		listaCurriculos.setItems(nomesOrcamentos);
+	}
+
+	@FXML
+	private void criarOrcamento() {
+		abrirPageOrcamento(null);
+	}
+
+	@FXML
+	private void abrirOrcamento() {
+		String nomeSelecionado = listaCurriculos.getSelectionModel().getSelectedItem();
+		if (nomeSelecionado != null) {
+			Orcamento orcamento = orcamentoDAO.buscarPorNome(nomeSelecionado);
+			if (orcamento != null) {
+				// Lógica para abrir a tela de modificação do orçamento selecionado
+				abrirPageOrcamento(orcamento);
+				exibirAlerta(AlertType.INFORMATION, "Abrir Orçamento", "Abrindo orçamento: " + nomeSelecionado);
+			}
+		} else {
+			exibirAlerta(AlertType.WARNING, "Nenhum orçamento selecionado",
+					"Por favor, selecione um orçamento para abrir.");
+		}
+	}
+
+	@FXML
+	private void excluirOrcamento() {
+		String nomeSelecionado = listaCurriculos.getSelectionModel().getSelectedItem();
+		if (nomeSelecionado != null) {
+			Orcamento orcamento = orcamentoDAO.buscarPorNome(nomeSelecionado);
+			if (orcamento != null) {
+				orcamentoDAO.excluir(orcamento.getIdOrcamento());
+				carregarNomesOrcamentos();
+				exibirAlerta(AlertType.INFORMATION, "Exclusão", "Orçamento excluído com sucesso.");
+			}
+		} else {
+			exibirAlerta(AlertType.WARNING, "Nenhum orçamento selecionado",
+					"Por favor, selecione um orçamento para excluir.");
+		}
+	}
+
+	@FXML
+	private void baixarPDF() {
+	    String nomeSelecionado = listaCurriculos.getSelectionModel().getSelectedItem();
+
+	    if (nomeSelecionado != null) {
+	        Orcamento orcamento = orcamentoDAO.buscarPorNome(nomeSelecionado);
+
+	        if (orcamento != null) {
+	            // Caminho para salvar o PDF
+	            FileChooser fileChooser = new FileChooser();
+	            fileChooser.setTitle("Salvar Orçamento como PDF");
+	            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF Files", "*.pdf"));
+	            File file = fileChooser.showSaveDialog(panePagePrincipal.getScene().getWindow());
+
+	            if (file != null) {
+	                try {
+	                    gerarPDF(orcamento, file);
+	                    exibirAlerta(AlertType.INFORMATION, "Sucesso", "PDF gerado com sucesso em:\n" + file.getAbsolutePath());
+	                } catch (Exception e) {
+	                    exibirAlerta(AlertType.ERROR, "Erro", "Erro ao gerar o PDF: " + e.getMessage());
+	                    e.printStackTrace();
+	                }
+	            }
+	        } else {
+	            exibirAlerta(AlertType.WARNING, "Orçamento não encontrado", "Não foi possível localizar o orçamento selecionado.");
+	        }
+	    } else {
+	        exibirAlerta(AlertType.WARNING, "Nenhum orçamento selecionado", "Por favor, selecione um orçamento para baixar.");
+	    }
+	}
+
+	private void gerarPDF(Orcamento orcamento, File file) throws Exception {
+	    // Inicializando o PDF
+	    PdfWriter writer = new PdfWriter(file);
+	    PdfDocument pdf = new PdfDocument(writer);
+	    Document document = new Document(pdf);
+
+	    // Título do PDF
+	    document.add(new Paragraph("Orçamento: " + orcamento.getNomeOrcamento())
+	            .setFontSize(20)
+	            .setBold()
+	            .setTextAlignment(TextAlignment.CENTER));
+
+	    // Adicionando informações gerais
+	    document.add(new Paragraph("Informações do Orçamento")
+	            .setFontSize(16)
+	            .setBold()
+	            .setMarginTop(20));
+
+	    // Adicionando detalhes do orçamento
+	    document.add(new Paragraph("Nome do Orçamento: " + orcamento.getNomeOrcamento()));
+	    document.add(new Paragraph("Data de Criação: " + orcamento.getDataCriacao()));
+	    document.add(new Paragraph("Valor Total: R$ " + String.format("%.2f", orcamento.getValorTotal())));
+
+	    // Tabela de Produtos (se aplicável)
+	    if (orcamento.getProdutos() != null && !orcamento.getProdutos().isEmpty()) {
+	        document.add(new Paragraph("\nProdutos").setFontSize(16).setBold());
+
+	        // Criando tabela
+	        float[] columnWidths = {200, 100, 100, 100}; // Largura das colunas
+	        Table table = new Table(columnWidths);
+
+	        // Cabeçalho da tabela
+	        table.addCell(new Cell().add("Produto").setBold());
+	        table.addCell(new Cell().add("Quantidade").setBold());
+	        table.addCell(new Cell().add("Preço Unitário").setBold());
+	        table.addCell(new Cell().add("Subtotal").setBold());
+
+	        // Adicionando os produtos
+	        for (Produto produto : orcamento.getProdutos()) {
+	            table.addCell(new Cell().add(produto.getNome()));
+	            table.addCell(new Cell().add(String.valueOf(produto.getQuantidade())));
+	            table.addCell(new Cell().add(String.format("R$ %.2f", produto.getPreco())));
+	            table.addCell(new Cell().add(String.format("R$ %.2f", produto.getQuantidade() * produto.getPreco())));
+	        }
+
+	        document.add(table);
+	    } else {
+	        document.add(new Paragraph("\nNenhum produto foi adicionado ao orçamento."));
+	    }
+
+	    // Fechando o documento
+	    document.close();
+	}
+
+	private void exibirAlerta(AlertType tipo, String titulo, String mensagem) {
+		Alert alerta = new Alert(tipo);
+		alerta.setTitle(titulo);
+		alerta.setContentText(mensagem);
+		alerta.showAndWait();
+	}
+}
